@@ -168,6 +168,11 @@ craft_guide.on_receive_fields = function(pos, formname, fields, player)
 	if fields.craft_guide_search_button then
 		page = 1
 	end
+    if player and player:is_player() then
+        minetest.log('action', 'CraftGuide formspec by player '..player:get_player_name())
+    else
+        minetest.log('action', 'CraftGuide formspec without player')
+    end
 
 	-- change page
 	if fields.craft_guide_prev then
@@ -226,6 +231,9 @@ craft_guide.update_recipe = function(meta, player, stack, alternate)
 	craft_guide.set_stack(inv, "fuel", 1, nil)
 
 	if stack==nil then return end
+    if type(stack)=="string" then
+        craft_guide.log("Request for item by string name :| - "..stack)
+    end
     if stack:get_name()=="" then
         craft_guide.log("Request for item with empty name :|")
         return 
@@ -380,26 +388,22 @@ end
 
 -- allow_metadata_inventory_move
 craft_guide.allow_metadata_inventory_move = function(pos, from_list, from_index, to_list, to_index, count, player)
+
 	local meta = minetest.env:get_meta(pos)
 	local inv = meta:get_inventory()
-	if to_list == "bin" and from_list == "output" then
+	if from_list == "output" and to_list == "bin" then
+        craft_guide.update_recipe(meta, player, inv:get_stack(from_list, from_index))
 		craft_guide.set_stack(inv, from_list,from_index,nil)
+	elseif from_list == "output" or to_list == "output" then
 		craft_guide.update_recipe(meta, player, inv:get_stack(from_list, from_index))
-	end
-	if to_list == "bin" and from_list == "bookmark" then
-		craft_guide.set_stack(inv, from_list,from_index,nil)
-	end
-	if to_list == "bookmark" then
-		craft_guide.set_stack(inv, to_list, to_index, inv:get_stack(from_list, from_index):get_name())
-		if from_list == "output" then
-			craft_guide.set_stack(inv, from_list,from_index,nil)
-		end
-	end
-	if to_list == "output" or from_list == "output" then
-		craft_guide.update_recipe(meta, player, inv:get_stack(from_list, from_index))
-	end
-	if from_list == "bookmarks" and to_list == "bookmarks"  then
+	elseif from_list == "bookmarks" and to_list == "bookmarks" then
 		return count
+	elseif from_list == "bookmark" and to_list == "bin" then
+		craft_guide.set_stack(inv, from_list,from_index,nil)
+	elseif to_list == "bookmark" then
+        if inv:get_size("from_list") > from_index then
+            craft_guide.set_stack(inv, to_list, to_index, inv:get_stack(from_list, from_index):get_name())
+        end
 	end
 	return 0
 end
